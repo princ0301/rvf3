@@ -2,37 +2,38 @@ const express = require('express');
 const axios = require('axios');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const FormData = require('form-data');
 const app = express();
 const cors = require('cors');
 app.use(cors());
-const port = 3000; // Change to your preferred port
+const port = 3000;
 
-// Replace with the actual URL of your Flask API endpoint
-const flaskApiUrl = 'http://localhost:5000/predict'; // Adjust for deployment
+const flaskApiUrl = 'http://localhost:5000/predict';
 
-// Multer storage configuration (optional)
+const uploadDir = 'uploads/';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Specify the directory to store uploaded files
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname); // Use original filename (or customize as needed)
+    cb(null, file.originalname);
   }
 });
 
-// Create multer upload middleware
 const upload = multer({ storage: storage });
 
-// Function to send image file to Flask API and handle response
 const sendImageToFlask = async (filePath) => {
   try {
     const formData = new FormData();
-    formData.append('file', fs.createReadStream(filePath)); // Load image using fs
+    formData.append('file', fs.createReadStream(filePath));
 
     const response = await axios.post(flaskApiUrl, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: formData.getHeaders()
     });
 
     return response.data;
@@ -42,7 +43,6 @@ const sendImageToFlask = async (filePath) => {
   }
 };
 
-// Route to handle image upload and prediction
 app.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image file provided' });
@@ -51,16 +51,14 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   const filePath = req.file.path;
 
   try {
-    // Send image to Flask API and get prediction
     const prediction = await sendImageToFlask(filePath);
 
-    // Clean up temporary image (optional if using multer)
-    // fs.unlinkSync(filePath); // Uncomment if you want to delete the uploaded file
+    fs.unlinkSync(filePath); // Clean up temporary file
 
     res.json(prediction);
   } catch (error) {
-    console.error('Error processing image:', error);
-    res.status(500).json({ error: 'Internal server error' });
+      console.error('Error processing image:', error);
+      res.status(500).json({ error: 'Internal server error' });
   }
 });
 

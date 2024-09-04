@@ -36,7 +36,7 @@ function App() {
         <div>
           <p>Selected file: {selectedFile.name}</p>
           <button onClick={handleSubmit}>Submit</button>
-          {prediction && <p>Prediction: {prediction.result}</p>}
+          {prediction && <p>Prediction: {prediction.prediction}</p>}
         </div>
       )}
     </div>

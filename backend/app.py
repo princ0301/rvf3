@@ -14,38 +14,39 @@ app = Flask(__name__)
 # Load the model
 model = load_model('model_vgg16_01.h5')
 
-def preprocess_image(img_path):
+def predict_image(img_path, class_names=['Fake', 'Real']):
     img = image.load_img(img_path, target_size=(224, 224))
     img_array = image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     img_array /= 255.0
-    return img_array
+
+    prediction = model.predict(img_array)
+    probability = prediction[0][0]
+    predicted_class = class_names[int(np.round(probability))]
+    confidence = abs(probability - 0.5) * 2 * 100  
+
+    return predicted_class, confidence
 
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+        return jsonify({'error': 'No file part'})
     
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-
-    # Save the file temporarily
-    filepath = os.path.join('uploads', file.filename)
-    file.save(filepath)
-
-    # Preprocess the image and make a prediction
-    img_array = preprocess_image(filepath)
-    prediction = model.predict(img_array)
-
-    # Clean up
-    os.remove(filepath)
-
-    # Convert prediction to class label
-    is_ai_generated = bool(np.argmax(prediction))
-    result = 'AI-Generated' if is_ai_generated else 'Real'
+        return jsonify({'error': 'No selected file'})
     
-    return jsonify({'result': result, 'confidence': float(np.max(prediction))})
+    if file:
+        file_path = os.path.join('uploads', file.filename)
+        file.save(file_path)
+        
+        predicted_class, confidence = predict_image(file_path)
+        return jsonify({'prediction': predicted_class, 'confidence': confidence})
+    
+    return jsonify({'error': 'Invalid file format'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+    
+    if not os.path.exists('uploads'):
+        os.makedirs('uploads')
