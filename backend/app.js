@@ -10,7 +10,6 @@ app.use(cors());
 const port = 3000;
 
 const flaskApiUrl = 'http://localhost:5000/predict';
-
 const uploadDir = 'uploads/';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
